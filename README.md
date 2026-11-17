@@ -14,6 +14,24 @@ Our tools send anonymous usage counts (organization name and counts only). See [
 
 If you use the **tejit-np-plugin** with your AI assistant, ask it to help you install any automation above. It reads the latest guide from this repo and walks you through it step by step.
 
+## Deploying
+
+Pushing to `main` auto-deploys Apps Script automations (job `deploy` in `.github/workflows/ci.yml`, runs after the `check` job passes). It never runs on pull requests, so the secret is never exposed to them.
+
+- Only folders with a `deploy.json` are deployed. A folder is redeployed only when its `deploy.json`, `appsscript.json`, `*.gs` or `*.html` changed. Tests, docs and `.md` files are never pushed to Apps Script.
+- It runs `clasp push --force` and then `clasp redeploy <deploymentId>`, which updates the **existing** web-app deployment (same URL) with a new version described as `ci <commit sha>`.
+- The repo copy of `appsscript.json` and the code overwrite whatever is online: edits made in the Apps Script editor are lost on the next deploy.
+
+**Add a new automation**
+
+1. Create the folder (see "Adding a new automation" below) with `appsscript.json`, `*.gs`, `*.html`.
+2. Create the script once, and do a first manual deployment in the Apps Script editor (Deploy > New deployment > Web app) to get the deployment ID.
+3. Add `<folder>/deploy.json`: `{"scriptId": "...", "deploymentId": "..."}` (both non-empty strings; script ID is in Project Settings).
+
+**Secret `CLASPRC_JSON`**: run `npx @google/clasp@3.4.1 login`, then save the full contents of `~/.clasprc.json` as the repo Actions secret `CLASPRC_JSON`. If the Google OAuth app is in test mode the token can expire (about 7 days): run `clasp login` again and update the secret. A missing or empty secret fails the deploy with a clear message.
+
+**Run manually**: Actions tab > ci > Run workflow on `main`; optionally enter a folder name, blank deploys every automation with a `deploy.json`.
+
 ## Adding a new automation
 
 1. Create a folder for it at the top of this repo (kebab-case name, e.g. `thank-you-letters/`).

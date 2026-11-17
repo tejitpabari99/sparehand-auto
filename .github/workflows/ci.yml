@@ -1,5 +1,13 @@
 name: ci
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      automation:
+        description: 'Folder to deploy (blank = every automation with a deploy.json)'
+        required: false
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -19,4 +27,66 @@ jobs:
           set -e
           for f in $(git ls-files '*.json'); do python3 -m json.tool "$f" > /dev/null; echo "ok $f"; done
       - name: Run auto-emailer tests
-        run: node --test auto-emailer/tests/*.test.js
+        run: node --test auto-emailer/tests/*.test.js scripts/tests/*.test.js
+  deploy:
+    needs: check
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    concurrency:
+      group: apps-script-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Find automations to deploy
+        id: find
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          INPUT: ${{ github.event.inputs.automation }}
+        run: |
+          set -e
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ -n "$INPUT" ]; then
+              [ -f "$INPUT/deploy.json" ] || { echo "::error::$INPUT has no deploy.json"; exit 1; }
+              list="$INPUT"
+            else
+              list="$(node scripts/deploy-apps-script.js all)"
+            fi
+          else
+            list="$(node scripts/deploy-apps-script.js changed "$BEFORE" "$GITHUB_SHA")"
+          fi
+          echo "Deploying: ${list:-nothing}"
+          { echo "list<<EOF"; echo "$list"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+      - name: Write clasp credentials
+        if: steps.find.outputs.list != ''
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::Secret CLASPRC_JSON is empty or missing. Run 'clasp login' and save ~/.clasprc.json as that repo secret."
+            exit 1
+          fi
+          umask 077
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+      - name: Deploy
+        if: steps.find.outputs.list != ''
+        env:
+          LIST: ${{ steps.find.outputs.list }}
+        run: |
+          set -e
+          for folder in $LIST; do
+            echo "::group::deploy $folder"
+            node scripts/deploy-apps-script.js deploy "$folder"
+            echo "::endgroup::"
+          done
+      - name: Remove clasp credentials
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
