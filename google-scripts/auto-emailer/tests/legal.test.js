@@ -6,7 +6,7 @@ const path = require('node:path');
 const { loadIndexScript, ROOT } = require('./helpers');
 
 const REPO = path.join(ROOT, '..', '..');
-const BASE = 'https://github.com/tejitpabari99/tejit-np-auto/blob/main/';
+const BASE = 'https://github.com/tejitpabari99/sparehand-auto/blob/main/';
 
 test('footer shows exact notice and Privacy Policy/Terms and Conditions links with safe attributes', () => {
   const { html } = loadIndexScript();

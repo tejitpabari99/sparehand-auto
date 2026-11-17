@@ -1,6 +1,6 @@
-# tejit-np-auto — automations for nonprofits
+# sparehand-auto — automations for nonprofits
 
-Free, simple automations that take repetitive work off a nonprofit team's plate. Each one has a plain-language guide written for people who are not technical.
+Free, simple automations from Sparehand that take repetitive work off a nonprofit team's plate. Each one has a plain-language guide written for people who are not technical.
 
 ## Automations
 
@@ -12,7 +12,7 @@ Our tools send anonymous usage counts (organization name and counts only). See [
 
 ## Get help installing
 
-If you use the **tejit-np-plugin** with your AI assistant, ask it to help you install any automation above. It reads the latest guide from this repo and walks you through it step by step.
+If you use the **sparehand-plugin** with your AI assistant, ask it to help you install any automation above. It reads the latest guide from this repo and walks you through it step by step.
 
 ## Deploying
 
@@ -45,5 +45,5 @@ Pushing to `main` auto-deploys Apps Script automations (job `deploy` in `.github
    Keep the 5 columns and the heading `Automations` unchanged.
 4. Every `INSTALLATION_GUIDE.md` must have a **What you need** section (the plugin reads it) and an **Open the tool** link that is an `https://` link.
 
-The tejit-np-plugin `install-automation` skill reads this table from
-<https://raw.githubusercontent.com/tejitpabari99/tejit-np-auto/main/README.md>, so a new row shows up for plugin users without a plugin update.
+The sparehand-plugin `install-automation` skill reads this table from
+<https://raw.githubusercontent.com/tejitpabari99/sparehand-auto/main/README.md>, so a new row shows up for plugin users without a plugin update.

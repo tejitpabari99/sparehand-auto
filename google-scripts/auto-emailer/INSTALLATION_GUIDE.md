@@ -128,6 +128,6 @@ Do **not** use the newest **Email Sent** column alone as the Conditional Column.
 ## Privacy
 - The tool runs **as you**, from your own Google account.
 - It sends **anonymous usage counts** to the developer, including your **organization name**. Never your email address, names, recipients, or draft or sheet content.
-- Read the [Privacy Policy](https://github.com/tejitpabari99/tejit-np-auto/blob/main/PRIVACY.md) and [Terms and Conditions](https://github.com/tejitpabari99/tejit-np-auto/blob/main/TERMS.md).
+- Read the [Privacy Policy](https://github.com/tejitpabari99/sparehand-auto/blob/main/PRIVACY.md) and [Terms and Conditions](https://github.com/tejitpabari99/sparehand-auto/blob/main/TERMS.md).
 - Remove access any time at <https://myaccount.google.com/permissions> (look for **NGO Mailer**).
 <!-- {% endraw %} -->
