@@ -801,8 +801,9 @@ function findColumnIndex(headers, columnIdentifier) {
  * @param {string} emailColumn - The column containing email addresses
  * @param {number} startRow - The row number to start from (1-indexed, defaults to 1)
  * @param {string} sheetName - Optional tab name (defaults to the first tab)
+ * @param {number} maxConsecutiveErrors - Stop after this many failures in a row (whole number >= 1, defaults to 5)
  */
-function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetName) {
+function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetName, maxConsecutiveErrors = 5) {
   console.log("Code.gs: Process and Send started");
   try {
     const spreadsheet = SpreadsheetApp.openById(sheetId);
@@ -821,6 +822,10 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
 
     if (startRow > emailContext.rows.length) {
       throw new Error(`Start row (${startRow}) exceeds total number of data rows (${emailContext.rows.length}).`);
+    }
+
+    if (typeof maxConsecutiveErrors !== 'number' || maxConsecutiveErrors < 1 || !Number.isInteger(maxConsecutiveErrors)) {
+      throw new Error(`Invalid max consecutive errors: ${maxConsecutiveErrors}. Must be a positive integer.`);
     }
 
     // Get current timestamp for column names
@@ -844,7 +849,7 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
 
     let emailsSent = 0;
     let consecutiveErrors = 0;
-    const MAX_CONSECUTIVE_ERRORS = 5;
+    const MAX_CONSECUTIVE_ERRORS = maxConsecutiveErrors;
 
     // Start from startRow - 1 (since array is 0-indexed but user input is 1-indexed)
     const rowsToProcess = emailContext.rows.slice(startRow - 1);
@@ -862,7 +867,7 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
           console.log(`Code.gs: Skipping row ${sheetRowNumber} - no email address`);
           sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
           sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
-          consecutiveErrors++;
+          // Blank email is skipped, not a failure: consecutive counter untouched
           continue;
         }
 
@@ -1212,7 +1217,8 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
           console.error(`Code.gs: Error updating sheet for row ${rowIndex} - ${sheetError.message}`);
         }
       }
-      return { success: false, error: "No email address" };
+      // Blank email cell: skipped, not a failure (sheet note above stays visible)
+      return { success: true, skipped: true, noEmail: true };
     }
 
     const recipients = parseRecipients_(emailData.to);

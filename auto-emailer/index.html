@@ -147,7 +147,7 @@
                    data-bs-toggle="tooltip"
                    title="Enter a row number to start sending from (1 = first data row). Leave blank to start from the beginning."></i>
               </label>
-              <input type="number" id="startRow" class="form-control" min="1" placeholder="Leave blank to start from row 1">
+              <input type="number" id="startRow" class="form-control" min="1" step="1" placeholder="Leave blank to start from row 1">
               <small class="text-muted mt-1 d-block">Start from a specific row (e.g., 5)</small>
             </div>
 
@@ -159,23 +159,38 @@
                    data-bs-toggle="tooltip"
                    title="Limit the number of emails to send. Leave blank to send all remaining emails. Only counts unsent emails (where conditional column is false or not set)."></i>
               </label>
-              <input type="number" id="limitEmails" class="form-control" min="1" placeholder="Leave blank for no limit">
+              <input type="number" id="limitEmails" class="form-control" min="1" step="1" placeholder="Leave blank for no limit">
               <small class="text-muted mt-1 d-block">Max emails to send (e.g., 10) - only counts unsent emails</small>
             </div>
           </div>
 
-          <!-- Conditional Column -->
-          <div class="mb-3">
-            <label class="form-label d-flex align-items-center">
-              Conditional Column (Optional)
-              <i class="bi bi-question-circle-fill help-icon"
-                 data-bs-toggle="tooltip"
-                 title="Select a column containing TRUE/FALSE values. TRUE = email already sent (skip), FALSE = email not sent (send). Case insensitive. If not selected, all rows will be processed."></i>
-            </label>
-            <select id="conditionalColumn" class="form-select">
-              <option value="">-- No conditional column --</option>
-            </select>
-            <small class="text-muted mt-1 d-block">Column with TRUE (skip) or FALSE (send) values to control email sending</small>
+          <!-- Conditional Column and Stop After Errors - Side by Side -->
+          <div class="row mb-3">
+            <!-- Conditional Column -->
+            <div class="col-md-6">
+              <label class="form-label d-flex align-items-center">
+                Conditional Column (Optional)
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Select a column containing TRUE/FALSE values. TRUE = email already sent (skip), FALSE = email not sent (send). Case insensitive. If not selected, all rows will be processed."></i>
+              </label>
+              <select id="conditionalColumn" class="form-select">
+                <option value="">-- No conditional column --</option>
+              </select>
+              <small class="text-muted mt-1 d-block">Column with TRUE (skip) or FALSE (send) values to control email sending</small>
+            </div>
+
+            <!-- Stop After Errors -->
+            <div class="col-md-6">
+              <label class="form-label d-flex align-items-center">
+                Stop After Errors (Optional)
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Stop sending after this many failed rows in a row. Default 5."></i>
+              </label>
+              <input type="number" id="maxConsecutiveErrors" class="form-control" min="1" step="1" placeholder="Default: 5">
+              <small class="text-muted mt-1 d-block">Stop after this many errors in a row (e.g., 3)</small>
+            </div>
           </div>
 
           <!-- Store Results -->
@@ -647,6 +662,15 @@
       saveOrgThen(doStartSending);
     }
 
+    // Parses a number input. Blank -> null (use default). Whole numbers >= 1 only;
+// anything else (2.5, 0, -1, "5abc") -> NaN so the caller rejects it.
+    function parseWholeNumber(raw) {
+      const t = String(raw === undefined || raw === null ? '' : raw).trim();
+      if (t === '') return null;
+      const n = Number(t);
+      return (Number.isInteger(n) && n >= 1) ? n : NaN;
+    }
+
     function doStartSending() {
       console.log("Frontend: ========== EMAIL BATCH START ==========");
       console.log(`Frontend: Timestamp - ${new Date().toISOString()}`);
@@ -656,15 +680,17 @@
       const draftSubject = document.getElementById('draftSelect').value;
       const sheetName = document.getElementById('tabSelect').value;
       const emailColumn = document.getElementById('emailColumn').value;
-      const startRowInput = document.getElementById('startRow').value;
-      const startRow = startRowInput ? parseInt(startRowInput) : 1;
-      const limitEmailsInput = document.getElementById('limitEmails').value;
-      const limitEmails = limitEmailsInput ? parseInt(limitEmailsInput) : null;
+      // Whole numbers >= 1 only; blank = default. NaN marks invalid input.
+      const startRowParsed = parseWholeNumber(document.getElementById('startRow').value);
+      const startRow = startRowParsed === null ? 1 : startRowParsed;
+      const limitEmails = parseWholeNumber(document.getElementById('limitEmails').value);
+      const maxErrorsParsed = parseWholeNumber(document.getElementById('maxConsecutiveErrors').value);
+      const maxConsecutiveErrors = maxErrorsParsed === null ? 5 : maxErrorsParsed;
       const storeResults = document.getElementById('storeResults').checked;
       const conditionalColumn = document.getElementById('conditionalColumn').value;
 
       console.log(`Frontend: Parameters - sheetId: ${sheetId}, draftSubject: ${draftSubject}, emailColumn: ${emailColumn}`);
-      console.log(`Frontend: Settings - startRow: ${startRow}, limitEmails: ${limitEmails}, storeResults: ${storeResults}, conditionalColumn: ${conditionalColumn}`);
+      console.log(`Frontend: Settings - startRow: ${startRow}, limitEmails: ${limitEmails}, maxConsecutiveErrors: ${maxConsecutiveErrors}, storeResults: ${storeResults}, conditionalColumn: ${conditionalColumn}`);
 
       // Validation
       if (!sheetId || !sheetName || !draftSubject || !emailColumn) {
@@ -674,16 +700,23 @@
       }
 
       // Validate startRow is a positive integer
-      if (startRow < 1 || !Number.isInteger(startRow)) {
+      if (!Number.isInteger(startRow) || startRow < 1) {
         console.error(`Frontend: Invalid startRow value: ${startRow}`);
         alert('Start row must be a positive integer (1 or greater).');
         return;
       }
 
       // Validate limitEmails if provided
-      if (limitEmails !== null && (limitEmails < 1 || !Number.isInteger(limitEmails))) {
+      if (limitEmails !== null && (!Number.isInteger(limitEmails) || limitEmails < 1)) {
         console.error(`Frontend: Invalid limitEmails value: ${limitEmails}`);
         alert('Limit emails must be a positive integer (1 or greater).');
+        return;
+      }
+
+      // Validate maxConsecutiveErrors
+      if (!Number.isInteger(maxConsecutiveErrors) || maxConsecutiveErrors < 1) {
+        console.error(`Frontend: Invalid maxConsecutiveErrors value: ${maxConsecutiveErrors}`);
+        alert('Stop after errors must be a whole number (1 or greater).');
         return;
       }
 
@@ -710,7 +743,7 @@
           console.log(`Frontend: Batch info -`, batchInfo);
           console.log(`Frontend: Will send ${batchInfo.totalRows} emails`);
 
-          sendEmailsSequentially(sheetId, draftSubject, emailColumn, batchInfo, btn, storeResults, sheetName);
+          sendEmailsSequentially(sheetId, draftSubject, emailColumn, batchInfo, btn, storeResults, sheetName, maxConsecutiveErrors);
         })
         .withFailureHandler(function(err) {
           console.error("Frontend: ERROR initializing batch -", err);
@@ -728,7 +761,7 @@
     }
 
     // Send emails one by one with progress updates
-    function sendEmailsSequentially(sheetId, draftSubject, emailColumn, batchInfo, btn, storeResults, sheetName) {
+    function sendEmailsSequentially(sheetId, draftSubject, emailColumn, batchInfo, btn, storeResults, sheetName, maxConsecutiveErrors) {
       console.log("Frontend: Starting sequential email sending");
       console.log(`Frontend: Total emails to send: ${batchInfo.totalRows}`);
       console.log(`Frontend: Eligible row indices:`, batchInfo.eligibleRowIndices);
@@ -745,7 +778,8 @@
         try { google.script.run.reportBatch(reportOk, emailsFailed, stopped, runId); } catch (e) {}
       }
       let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = 5;
+      const MAX_CONSECUTIVE_ERRORS = maxConsecutiveErrors || 5;
+      let emailsSkippedNoEmail = 0; // blank-email rows: neither sent nor failed
       const totalRows = batchInfo.totalRows;
       const eligibleRowIndices = batchInfo.eligibleRowIndices || [];
       const startTime = Date.now();
@@ -757,7 +791,7 @@
           const duration = ((endTime - startTime) / 1000).toFixed(1);
 
           console.log("Frontend: ========== EMAIL BATCH COMPLETE ==========");
-          console.log(`Frontend: Sent: ${emailsSent}, Failed: ${emailsFailed}, Total: ${totalRows}`);
+          console.log(`Frontend: Sent: ${emailsSent}, Failed: ${emailsFailed}, Skipped (no email): ${emailsSkippedNoEmail}, Total: ${totalRows}`);
           console.log(`Frontend: Duration: ${duration} seconds`);
 
           const successRate = totalRows > 0 ? ((emailsSent / totalRows) * 100).toFixed(1) : 0;
@@ -766,6 +800,7 @@
             `<span class="text-success"><i class="bi bi-check-circle-fill"></i> <strong>Complete!</strong></span>
              <p class="mt-2">Sent: ${emailsSent}/${totalRows} emails (${successRate}% success rate)</p>
              <p class="text-muted small">Duration: ${duration} seconds</p>
+             ${emailsSkippedNoEmail > 0 ? `<p class="text-muted small">Skipped (no email): ${emailsSkippedNoEmail} - rows with a blank email cell</p>` : ''}
              ${emailsFailed > 0 ? `<p class="text-warning small">Failed: ${emailsFailed} emails - check spreadsheet for details</p>` : ''}`;
 
           btn.disabled = false;
@@ -784,14 +819,18 @@
         btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Sending ${progress}/${totalRows} (${percentage}%)`;
         document.getElementById('status').innerHTML =
           `<span class="text-info"><i class="bi bi-envelope-fill"></i> Sending email ${progress}/${totalRows} (${percentage}%)...</span>
-           <p class="text-muted small mt-1">Sent: ${emailsSent} | Failed: ${emailsFailed} | Row: ${currentRow}</p>`;
+           <p class="text-muted small mt-1">Sent: ${emailsSent} | Failed: ${emailsFailed} | Skipped (no email): ${emailsSkippedNoEmail} | Row: ${currentRow}</p>`;
 
         console.log(`Frontend: Sending email ${progress}/${totalRows} (row ${currentRow})`);
 
         // Send single email
         google.script.run
           .withSuccessHandler(function(result) {
-            if (result.success) {
+            if (result.noEmail) {
+              // Blank email cell: skipped, not a failure; consecutive counter untouched
+              emailsSkippedNoEmail++;
+              console.log(`Frontend: Email ${progress}/${totalRows} skipped - no email address`);
+            } else if (result.success) {
               emailsSent++;
               if (!result.skipped) reportOk++;
               consecutiveErrors = 0;
