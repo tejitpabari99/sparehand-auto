@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// Deploys an Apps Script automation folder with clasp. No dependencies.
+// Deploys an Apps Script automation folder (<name>/ or <group>/<name>/) with clasp. No dependencies.
 //   node scripts/deploy-apps-script.js changed <beforeSha> <sha>   -> prints folders to deploy
 //   node scripts/deploy-apps-script.js all                          -> prints every folder with deploy.json
 //   node scripts/deploy-apps-script.js deploy <folder>              -> push + update existing deployment
@@ -47,11 +47,14 @@ function stage(dir, outDir) {
 function changedAutomations(changedPaths, hasDeployJson) {
   const out = new Set();
   for (const p of changedPaths) {
-    const i = p.indexOf('/');
-    if (i <= 0) continue;
-    const folder = p.slice(0, i);
-    const rel = p.slice(i + 1);
-    if ((rel === 'deploy.json' || isDeployableFile(rel)) && hasDeployJson(folder)) out.add(folder);
+    const parts = p.split('/');
+    // An automation folder is <name>/ or <group>/<name>/ (max 2 levels deep).
+    for (const depth of [1, 2]) {
+      if (parts.length <= depth) break;
+      const folder = parts.slice(0, depth).join('/');
+      const rel = parts.slice(depth).join('/');
+      if ((rel === 'deploy.json' || isDeployableFile(rel)) && hasDeployJson(folder)) out.add(folder);
+    }
   }
   return [...out].sort();
 }
@@ -76,10 +79,19 @@ function deployAutomation(dir, { sha, run = claspRun }) {
   }
 }
 
+// Automation folders: any folder up to 2 levels deep (<name>/ or <group>/<name>/) with a deploy.json.
 function listAll(root) {
-  return fs.readdirSync(root, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && fs.existsSync(path.join(root, e.name, 'deploy.json')))
-    .map((e) => e.name).sort();
+  const skip = (n) => n.startsWith('.') || n === 'node_modules';
+  const subdirs = (dir) => fs.readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && !skip(e.name)).map((e) => e.name);
+  const out = [];
+  for (const a of subdirs(root)) {
+    if (fs.existsSync(path.join(root, a, 'deploy.json'))) out.push(a);
+    for (const b of subdirs(path.join(root, a))) {
+      if (fs.existsSync(path.join(root, a, b, 'deploy.json'))) out.push(`${a}/${b}`);
+    }
+  }
+  return out.sort();
 }
 
 function main(argv) {

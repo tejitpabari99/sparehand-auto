@@ -130,3 +130,29 @@ test('workflow YAML parses and is safe (if pyyaml available)', (t) => {
   assert.ok(job.concurrency);
   assert.strictEqual(job.permissions.contents, 'read');
 });
+
+test('changedAutomations: nested group/name folders map to group/name', () => {
+  const has = (f) => f === 'google-scripts/auto-emailer';
+  assert.deepStrictEqual(d.changedAutomations(['google-scripts/auto-emailer/code.gs', 'google-scripts/auto-emailer/index.html'], has), ['google-scripts/auto-emailer']);
+  assert.deepStrictEqual(d.changedAutomations(['google-scripts/auto-emailer/deploy.json'], has), ['google-scripts/auto-emailer']);
+  assert.deepStrictEqual(d.changedAutomations(['google-scripts/auto-emailer/tests/a.js', 'google-scripts/auto-emailer/docs/x.html', 'google-scripts/auto-emailer/INSTALLATION_GUIDE.md', 'google-scripts/README.md'], has), []);
+});
+test('changedAutomations: legacy pointer folder auto-emailer/ (no deploy.json) deploys nothing', () => {
+  const has = (f) => f === 'google-scripts/auto-emailer';
+  assert.deepStrictEqual(d.changedAutomations(['auto-emailer/INSTALLATION_GUIDE.md'], has), []);
+});
+test('listAll finds top-level and nested (2 levels) automations, ignores others', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'listall-'));
+  const mk = (p) => { fs.mkdirSync(path.join(root, p), { recursive: true }); fs.writeFileSync(path.join(root, p, 'deploy.json'), '{}'); };
+  mk('top'); mk('google-scripts/a'); mk('google-scripts/b');
+  fs.mkdirSync(path.join(root, 'auto-emailer'));
+  fs.mkdirSync(path.join(root, 'google-scripts/nodeploy'));
+  fs.mkdirSync(path.join(root, 'node_modules/x/y'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'node_modules/x/deploy.json'), '{}');
+  assert.deepStrictEqual(d.listAll(root), ['google-scripts/a', 'google-scripts/b', 'top']);
+});
+test('real repo: google-scripts/auto-emailer is discovered, legacy auto-emailer/ is not', () => {
+  const list = d.listAll(path.join(__dirname, '..', '..'));
+  assert.ok(list.includes('google-scripts/auto-emailer'), list.join(','));
+  assert.ok(!list.includes('auto-emailer'));
+});

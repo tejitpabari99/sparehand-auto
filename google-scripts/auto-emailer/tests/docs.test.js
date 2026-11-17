@@ -6,11 +6,11 @@ const path = require('node:path');
 const { ROOT } = require('./helpers');
 
 const guide = fs.readFileSync(path.join(ROOT, 'INSTALLATION_GUIDE.md'), 'utf8');
-const readme = fs.readFileSync(path.join(ROOT, '..', 'README.md'), 'utf8');
+const readme = fs.readFileSync(path.join(ROOT, '..', '..', 'README.md'), 'utf8');
 
-const TABLE = `| Automation | What it does | Guide | Open the tool |
-|---|---|---|---|
-| \`auto-emailer\` | Sends a personal email to many people at once, using a list in a Google Sheet and a Gmail draft as the template. | [Installation guide](auto-emailer/INSTALLATION_GUIDE.md) | [Open NGO Auto Emailer](https://go.tejitpabari.com/tejit-np-auto-emailer) |
+const TABLE = `| Automation | What it does | Guide | Open the tool | Folder |
+|---|---|---|---|---|
+| \`auto-emailer\` | Sends a personal email to many people at once, using a list in a Google Sheet and a Gmail draft as the template. | [Installation guide](google-scripts/auto-emailer/INSTALLATION_GUIDE.md) | [Open NGO Auto Emailer](https://go.tejitpabari.com/tejit-np-auto-emailer) | \`google-scripts/auto-emailer\` |
 `;
 
 test('guide: org name box in dashboard step, screenshots present', () => {
@@ -54,7 +54,7 @@ test('guide: no re-authorization wording', () => {
   assert.doesNotMatch(guide, /_Updated November 2026/);
 });
 
-test('README: one usage-counts line with Terms/Privacy links; Automations table untouched', () => {
+test('README: one usage-counts line with Terms/Privacy links; Automations table (Folder column last, first column unchanged)', () => {
   assert.ok(readme.includes(TABLE));
   assert.ok(readme.includes('## Automations\n\n' + TABLE));
   assert.match(readme, /anonymous usage counts[^\n]*\[Terms\]\(TERMS\.md\)[^\n]*\[Privacy\]\(PRIVACY\.md\)/i);

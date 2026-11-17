@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       automation:
-        description: 'Folder to deploy (blank = every automation with a deploy.json)'
+        description: 'Folder to deploy, e.g. google-scripts/auto-emailer (blank = every automation with a deploy.json)'
         required: false
         default: ''
 permissions:
@@ -21,13 +21,13 @@ jobs:
       - name: Syntax-check Apps Script files
         run: |
           set -e
-          for f in */*.gs; do cp "$f" "${RUNNER_TEMP}/$(basename "$f").js"; node --check "${RUNNER_TEMP}/$(basename "$f").js"; echo "ok $f"; done
+          find . -mindepth 2 -maxdepth 3 -name '*.gs' -not -path './node_modules/*' | sort | while read -r f; do cp "$f" "${RUNNER_TEMP}/$(basename "$f").js"; node --check "${RUNNER_TEMP}/$(basename "$f").js"; echo "ok $f"; done
       - name: Validate JSON files
         run: |
           set -e
           for f in $(git ls-files '*.json'); do python3 -m json.tool "$f" > /dev/null; echo "ok $f"; done
       - name: Run auto-emailer tests
-        run: node --test auto-emailer/tests/*.test.js scripts/tests/*.test.js
+        run: node --test google-scripts/auto-emailer/tests/*.test.js scripts/tests/*.test.js
   deploy:
     needs: check
     if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
