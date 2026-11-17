@@ -76,3 +76,17 @@ test('guide: Pages rendering safety (raw wrap, table spacing, img tags)', () => 
   assert.ok(/<img src="docs\/images\/[^"]+" alt="[^"]*" width="\d+">/.test(guide));
   assert.ok(!guide.includes('send-test-email.png'));
 });
+
+test('rebrand: README and guide use Sparehand names, no old names', () => {
+  const terms = fs.readFileSync(path.join(ROOT, '..', '..', 'TERMS.md'), 'utf8');
+  assert.match(readme, /^# sparehand-auto/m);
+  assert.match(readme, /Sparehand/);
+  assert.ok(readme.includes('sparehand-plugin'));
+  assert.ok(readme.includes('https://raw.githubusercontent.com/tejitpabari99/sparehand-auto/main/README.md'));
+  assert.ok(guide.includes('https://github.com/tejitpabari99/sparehand-auto/blob/main/PRIVACY.md'));
+  assert.ok(terms.includes('https://github.com/tejitpabari99/sparehand-auto/issues'));
+  for (const txt of [readme, guide, terms]) {
+    assert.ok(!/tejit-np-plugin|Tejit's Non/.test(txt));
+    assert.ok(!txt.replace('go.tejitpabari.com/tejit-np-auto-emailer', '').includes('tejit-np-auto'));
+  }
+});
