@@ -104,9 +104,10 @@ Click **Advanced** on the dashboard. All optional.
 | **Start from Row** | Starts at this person (`1` = first person, row 2). Blank = from the top. |
 | **Limit Emails** | Stops after this many tries. Blank = no limit. |
 | **Conditional Column** | A column saying who already got the email. **TRUE** = skip. FALSE or empty = send. Other values stop the run. |
+| **Stop After Errors** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
 | **Store results in spreadsheet** | Adds **Email Sent** and **Email Error** columns (with date and time) each run. |
 
-If 5 emails in a row fail, the tool stops. To continue after stopping:
+If 5 emails in a row fail (or the number you set in **Stop After Errors**), the tool stops. Rows with a blank email cell are skipped: they are not counted as sent or failed, and do not affect this count. To continue after stopping:
 
 - Set **Start from Row** to the next person after the last one sent, **or**
 - Keep your own column (for example `Already Sent`), copy TRUE values into it after each run, and use it as the **Conditional Column**.

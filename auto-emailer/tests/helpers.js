@@ -150,6 +150,7 @@ function loadIndexScript(opts = {}) {
   const el = (id) => elements[id] || (elements[id] = {
     innerHTML: '', value: (opts.values || {})[id] ?? '', disabled: false, checked: true,
     classList: { toggle: noop },
+    ...((opts.badInput || {})[id] ? { validity: { badInput: true } } : {}),
   });
   const alerts = [];
   const run = makeRun();

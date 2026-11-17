@@ -73,7 +73,7 @@ test('startSending validates tab and passes it to sendEmailBatch and sendSingleE
   h.run.state.ok({ org: 'Acme' });
   const call = h.run.state.calls[1];
   assert.strictEqual(call.name, 'sendEmailBatch');
-  assert.strictEqual(call.args[call.args.length - 1], 'Vols');
+  assert.strictEqual(call.args[7], 'Vols');
   h.run.state.ok({ totalRows: 1, eligibleRowIndices: [1], sentColIndex: 4, errorColIndex: 5, conditionalColIndex: 3 });
   const single = h.run.state.calls.pop();
   assert.strictEqual(single.name, 'sendSingleEmail');

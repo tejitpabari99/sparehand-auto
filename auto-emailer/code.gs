@@ -612,6 +612,38 @@ function isValidSingleEmail_(addr) {
 }
 
 /**
+ * Split a recipient cell on ; and , into valid/invalid addresses.
+ * Each piece is trimmed, empties dropped, valid ones deduped (case-insensitive).
+ * @return {{valid: string[], invalid: string[]}}
+ */
+function parseRecipients_(cell) {
+  const valid = [];
+  const invalid = [];
+  const seen = {};
+  String(cell || '').split(/[;,]/).forEach(function (piece) {
+    const addr = piece.trim();
+    if (addr === '') return;
+    if (isValidSingleEmail_(addr)) {
+      const key = addr.toLowerCase();
+      if (!seen[key]) { seen[key] = true; valid.push(addr); }
+    } else {
+      invalid.push(addr);
+    }
+  });
+  return { valid: valid, invalid: invalid };
+}
+
+/**
+ * Error-column note for skipped addresses. Starts with "Sent;" so it can never
+ * be read as a formula; invalid text is flattened to one line and truncated.
+ */
+function skippedNote_(invalid) {
+  if (!invalid.length) return "";
+  const list = invalid.map(function (a) { return a.replace(/\s+/g, ' ').substring(0, 60); }).join(', ');
+  return "Sent; skipped invalid: " + list;
+}
+
+/**
  * Escape cell data to make JSON safe
  * From Google's Mail Merge script
  * @see https://stackoverflow.com/a/9204218/1027723
@@ -769,8 +801,9 @@ function findColumnIndex(headers, columnIdentifier) {
  * @param {string} emailColumn - The column containing email addresses
  * @param {number} startRow - The row number to start from (1-indexed, defaults to 1)
  * @param {string} sheetName - Optional tab name (defaults to the first tab)
+ * @param {number} maxConsecutiveErrors - Stop after this many failures in a row (whole number >= 1, defaults to 5)
  */
-function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetName) {
+function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetName, maxConsecutiveErrors = 5) {
   console.log("Code.gs: Process and Send started");
   try {
     const spreadsheet = SpreadsheetApp.openById(sheetId);
@@ -789,6 +822,10 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
 
     if (startRow > emailContext.rows.length) {
       throw new Error(`Start row (${startRow}) exceeds total number of data rows (${emailContext.rows.length}).`);
+    }
+
+    if (typeof maxConsecutiveErrors !== 'number' || maxConsecutiveErrors < 1 || !Number.isInteger(maxConsecutiveErrors)) {
+      throw new Error(`Invalid max consecutive errors: ${maxConsecutiveErrors}. Must be a positive integer.`);
     }
 
     // Get current timestamp for column names
@@ -812,7 +849,7 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
 
     let emailsSent = 0;
     let consecutiveErrors = 0;
-    const MAX_CONSECUTIVE_ERRORS = 5;
+    const MAX_CONSECUTIVE_ERRORS = maxConsecutiveErrors;
 
     // Start from startRow - 1 (since array is 0-indexed but user input is 1-indexed)
     const rowsToProcess = emailContext.rows.slice(startRow - 1);
@@ -830,20 +867,21 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
           console.log(`Code.gs: Skipping row ${sheetRowNumber} - no email address`);
           sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
           sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
-          consecutiveErrors++;
+          // Blank email is skipped, not a failure: consecutive counter untouched
           continue;
         }
 
-        if (!isValidSingleEmail_(emailData.to)) {
+        const recipients = parseRecipients_(emailData.to);
+        if (recipients.valid.length === 0) {
           console.log(`Code.gs: Skipping row ${sheetRowNumber} - invalid email address`);
           sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
-          sheet.getRange(sheetRowNumber, errorColIndex).setValue("Invalid email address (must be one address)");
+          sheet.getRange(sheetRowNumber, errorColIndex).setValue("Invalid email address");
           consecutiveErrors++;
           continue;
         }
 
         // Send the email
-        GmailApp.sendEmail(emailData.to.trim(), emailData.subject, emailData.text, {
+        GmailApp.sendEmail(recipients.valid.join(','), emailData.subject, emailData.text, {
           htmlBody: emailData.html,
           attachments: emailData.attachments,
           inlineImages: emailData.inlineImages
@@ -852,7 +890,7 @@ function processAndSend(sheetId, draftSubject, emailColumn, startRow = 1, sheetN
         // Mark as sent with timestamp
         const sentTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
         sheet.getRange(sheetRowNumber, sentColIndex).setValue(true);
-        sheet.getRange(sheetRowNumber, errorColIndex).setValue("");
+        sheet.getRange(sheetRowNumber, errorColIndex).setValue(skippedNote_(recipients.invalid));
 
         emailsSent++;
         consecutiveErrors = 0; // Reset consecutive error counter
@@ -941,7 +979,7 @@ function sendTestEmail(sheetId, draftSubject, emailColumn, sheetName) {
  * Send emails one at a time and report progress back to client
  * This allows for real-time progress updates in the UI
  */
-function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitEmails = null, storeResults = true, conditionalColumn = '', sheetName) {
+function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitEmails = null, storeResults = true, conditionalColumn = '', sheetName, maxConsecutiveErrors = null) {
   requireOrganization_();
   console.log("Code.gs: ==================== BATCH START ====================");
   console.log("Code.gs: Send Email Batch started");
@@ -973,6 +1011,15 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
         console.error(`Code.gs: Invalid limitEmails value: ${limitEmails}`);
         throw new Error(`Invalid limit: ${limitEmails}. Must be a positive integer.`);
       }
+    }
+
+    // Validate error limit (default 5)
+    if (maxConsecutiveErrors === null || maxConsecutiveErrors === undefined) {
+      maxConsecutiveErrors = 5;
+    }
+    if (typeof maxConsecutiveErrors !== 'number' || maxConsecutiveErrors < 1 || !Number.isInteger(maxConsecutiveErrors)) {
+      console.error(`Code.gs: Invalid maxConsecutiveErrors value: ${maxConsecutiveErrors}`);
+      throw new Error(`Invalid error limit: ${maxConsecutiveErrors}. Must be a positive integer.`);
     }
 
     let sentColIndex = null;
@@ -1090,7 +1137,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
       errorColIndex: errorColIndex,
       conditionalColIndex: conditionalColIndex,
       startRow: eligibleRowIndices[0] || startRow, // First eligible row
-      eligibleRowIndices: eligibleRowIndices // Array of all eligible row indices
+      eligibleRowIndices: eligibleRowIndices, // Array of all eligible row indices
+      maxConsecutiveErrors: maxConsecutiveErrors
     };
 
   } catch (error) {
@@ -1179,28 +1227,30 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
           console.error(`Code.gs: Error updating sheet for row ${rowIndex} - ${sheetError.message}`);
         }
       }
-      return { success: false, error: "No email address" };
+      // Blank email cell: skipped, not a failure (sheet note above stays visible)
+      return { success: true, skipped: true, noEmail: true };
     }
 
-    if (!isValidSingleEmail_(emailData.to)) {
+    const recipients = parseRecipients_(emailData.to);
+    if (recipients.valid.length === 0) {
       console.warn(`Code.gs: Invalid email address in row ${rowIndex}`);
       if (storeResults && sentColIndex && errorColIndex) {
         try {
           sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
-          sheet.getRange(sheetRowNumber, errorColIndex).setValue("Invalid email address (must be one address)");
+          sheet.getRange(sheetRowNumber, errorColIndex).setValue("Invalid email address");
           SpreadsheetApp.flush();
         } catch (sheetError) {
           console.error(`Code.gs: Error updating sheet for row ${rowIndex} - ${sheetError.message}`);
         }
       }
-      return { success: false, error: "Invalid email address (must be one address)" };
+      return { success: false, error: "Invalid email address" };
     }
 
     // Send the email
     console.log(`Code.gs: Sending email for row ${rowIndex}`);
 
     try {
-      GmailApp.sendEmail(emailData.to.trim(), emailData.subject, emailData.text, {
+      GmailApp.sendEmail(recipients.valid.join(','), emailData.subject, emailData.text, {
         htmlBody: emailData.html,
         attachments: emailData.attachments,
         inlineImages: emailData.inlineImages
@@ -1218,7 +1268,7 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
       try {
         console.log(`Code.gs: Updating spreadsheet - marking row ${rowIndex} as sent`);
         sheet.getRange(sheetRowNumber, sentColIndex).setValue(true);
-        sheet.getRange(sheetRowNumber, errorColIndex).setValue("");
+        sheet.getRange(sheetRowNumber, errorColIndex).setValue(skippedNote_(recipients.invalid));
         SpreadsheetApp.flush();
         console.log(`Code.gs: Tracking columns updated for row ${rowIndex}`);
       } catch (sheetError) {
