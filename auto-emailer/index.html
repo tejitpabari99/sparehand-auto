@@ -689,6 +689,21 @@
       const storeResults = document.getElementById('storeResults').checked;
       const conditionalColumn = document.getElementById('conditionalColumn').value;
 
+      // <input type=number> reports junk like "abc" as value "" - catch it explicitly
+      const isBad = (id) => { const e = document.getElementById(id); return !!(e && e.validity && e.validity.badInput); };
+      if (isBad('startRow')) {
+        alert('Start row must be a positive integer (1 or greater).');
+        return;
+      }
+      if (isBad('limitEmails')) {
+        alert('Limit emails must be a positive integer (1 or greater).');
+        return;
+      }
+      if (isBad('maxConsecutiveErrors')) {
+        alert('Stop after errors must be a whole number (1 or greater).');
+        return;
+      }
+
       console.log(`Frontend: Parameters - sheetId: ${sheetId}, draftSubject: ${draftSubject}, emailColumn: ${emailColumn}`);
       console.log(`Frontend: Settings - startRow: ${startRow}, limitEmails: ${limitEmails}, maxConsecutiveErrors: ${maxConsecutiveErrors}, storeResults: ${storeResults}, conditionalColumn: ${conditionalColumn}`);
 
@@ -757,7 +772,7 @@
 
           console.log("Frontend: ========== BATCH INITIALIZATION FAILED ==========");
         })
-        .sendEmailBatch(sheetId, draftSubject, emailColumn, startRow, limitEmails, storeResults, conditionalColumn, sheetName);
+        .sendEmailBatch(sheetId, draftSubject, emailColumn, startRow, limitEmails, storeResults, conditionalColumn, sheetName, maxConsecutiveErrors);
     }
 
     // Send emails one by one with progress updates
@@ -778,7 +793,7 @@
         try { google.script.run.reportBatch(reportOk, emailsFailed, stopped, runId); } catch (e) {}
       }
       let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = maxConsecutiveErrors || 5;
+      const MAX_CONSECUTIVE_ERRORS = batchInfo.maxConsecutiveErrors || maxConsecutiveErrors || 5;
       let emailsSkippedNoEmail = 0; // blank-email rows: neither sent nor failed
       const totalRows = batchInfo.totalRows;
       const eligibleRowIndices = batchInfo.eligibleRowIndices || [];

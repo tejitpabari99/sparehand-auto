@@ -186,3 +186,45 @@ test('processAndSend: blank-email rows do not count toward the consecutive limit
   const f = fixture([['a@x.org', 'A'], ['', 'B'], ['c@x.org', 'C'], ['d@x.org', 'D']], true);
   assert.throws(() => f.ctx.processAndSend('S1', 'Hello', 'Email', 1, 'S', 2), /Stopped after 2/);
 });
+
+// ---------- review fix round 1: server-side error limit on the real batch path ----------
+test('sendEmailBatch rejects invalid maxConsecutiveErrors (0, -1, 2.5, "5")', () => {
+  const { ctx } = fixture([['a@x.org', 'A']]);
+  for (const bad of [0, -1, 2.5, '5']) {
+    assert.throws(() => ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, '', 'S', bad), /Invalid error limit/);
+  }
+});
+
+test('sendEmailBatch returns maxConsecutiveErrors in batchInfo (default 5)', () => {
+  const { ctx } = fixture([['a@x.org', 'A']]);
+  assert.strictEqual(ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, '', 'S').maxConsecutiveErrors, 5);
+  assert.strictEqual(ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, '', 'S', null).maxConsecutiveErrors, 5);
+  assert.strictEqual(ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, '', 'S', 3).maxConsecutiveErrors, 3);
+});
+
+test('frontend passes maxConsecutiveErrors to sendEmailBatch', () => {
+  const h = start({ maxConsecutiveErrors: '3' });
+  const c = h.run.state.calls.find(x => x.name === 'sendEmailBatch');
+  assert.strictEqual(c.args[8], 3);
+  const d = start({}).run.state.calls.find(x => x.name === 'sendEmailBatch');
+  assert.strictEqual(d.args[8], 5);
+});
+
+test('UI stops after batchInfo.maxConsecutiveErrors failures (server value wins)', () => {
+  const h = start({ maxConsecutiveErrors: '5' });
+  h.run.state.ok({ totalRows: 10, eligibleRowIndices: Array.from({ length: 10 }, (_, i) => i + 1), sentColIndex: 4, errorColIndex: 5, conditionalColIndex: null, maxConsecutiveErrors: 2 });
+  h.run.state.ok({ success: false, error: 'boom' });
+  h.run.state.ok({ success: false, error: 'boom' });
+  assert.strictEqual(singles(h).length, 2);
+  assert.match(h.el('status').innerHTML, /2 consecutive errors/);
+});
+
+for (const field of ['startRow', 'limitEmails', 'maxConsecutiveErrors']) {
+  test(`badInput on ${field} alerts and does not send`, () => {
+    const h2 = loadIndexScript({ values: BASE, badInput: { [field]: true } });
+    h2.ctx.startSending();
+    h2.run.state.ok({ org: 'Acme' });
+    assert.strictEqual(h2.alerts.length, 1);
+    assert.ok(!h2.run.state.calls.some(c => c.name === 'sendEmailBatch'));
+  });
+}

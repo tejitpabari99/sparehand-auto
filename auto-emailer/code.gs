@@ -979,7 +979,7 @@ function sendTestEmail(sheetId, draftSubject, emailColumn, sheetName) {
  * Send emails one at a time and report progress back to client
  * This allows for real-time progress updates in the UI
  */
-function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitEmails = null, storeResults = true, conditionalColumn = '', sheetName) {
+function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitEmails = null, storeResults = true, conditionalColumn = '', sheetName, maxConsecutiveErrors = null) {
   requireOrganization_();
   console.log("Code.gs: ==================== BATCH START ====================");
   console.log("Code.gs: Send Email Batch started");
@@ -1011,6 +1011,15 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
         console.error(`Code.gs: Invalid limitEmails value: ${limitEmails}`);
         throw new Error(`Invalid limit: ${limitEmails}. Must be a positive integer.`);
       }
+    }
+
+    // Validate error limit (default 5)
+    if (maxConsecutiveErrors === null || maxConsecutiveErrors === undefined) {
+      maxConsecutiveErrors = 5;
+    }
+    if (typeof maxConsecutiveErrors !== 'number' || maxConsecutiveErrors < 1 || !Number.isInteger(maxConsecutiveErrors)) {
+      console.error(`Code.gs: Invalid maxConsecutiveErrors value: ${maxConsecutiveErrors}`);
+      throw new Error(`Invalid error limit: ${maxConsecutiveErrors}. Must be a positive integer.`);
     }
 
     let sentColIndex = null;
@@ -1128,7 +1137,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
       errorColIndex: errorColIndex,
       conditionalColIndex: conditionalColIndex,
       startRow: eligibleRowIndices[0] || startRow, // First eligible row
-      eligibleRowIndices: eligibleRowIndices // Array of all eligible row indices
+      eligibleRowIndices: eligibleRowIndices, // Array of all eligible row indices
+      maxConsecutiveErrors: maxConsecutiveErrors
     };
 
   } catch (error) {
