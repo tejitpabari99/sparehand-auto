@@ -94,12 +94,11 @@ test('other send errors are normal row errors (no quotaStop, no retry)', () => {
 const singleP = (ctx, row, sentPicked, errPicked) =>
   ctx.sendSingleEmail('S1', 'Hello', 'Email', row, 4, 3, true, null, 'S', false, sentPicked, errPicked);
 
-test('blank email: picked existing columns are left untouched', () => {
+test('blank email: picked existing columns still get false + "No email address"', () => {
   const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
   const r = singleP(ctx, 1, true, true);
   assert.strictEqual(r.noEmail, true);
-  assert.strictEqual(sheet.writes.length, 0);
-  assert.deepStrictEqual([sheet.cells[1][2], sheet.cells[1][3]], ['keep', 'keep']);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
 test('blank email: new (not picked) columns still get "No email address"', () => {
@@ -108,10 +107,10 @@ test('blank email: new (not picked) columns still get "No email address"', () =>
   assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
-test('blank email: mixed picked/new writes only the new column', () => {
+test('blank email: mixed picked/new writes both columns', () => {
   const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
   singleP(ctx, 1, true, false);
-  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[3, 'No email address']]);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
 test('batchInfo reports which result columns were picked', () => {

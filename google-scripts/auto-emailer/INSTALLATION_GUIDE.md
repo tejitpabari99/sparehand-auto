@@ -103,7 +103,7 @@ Click **Advanced (Optional)** on the dashboard. Everything in it is optional.
 |---|---|
 | **Store results in spreadsheet** | Writes **Email Sent** and **Email Error** results into your tab (new columns with date and time by default). Turn off to send without touching the sheet. |
 | **Conditional Column** | A column saying who already got the email. **TRUE** = skip. FALSE or empty = send. Other values stop the run. |
-| **Email Sent column** / **Email Error column** | Only available when **Store results in spreadsheet** is on. **-- New Column --** (default) adds a new column. Or pick one of your existing columns to write the result there instead (only rows that were sent or failed are changed; skipped rows are left alone). Pick two different columns, and not the email column. |
+| **Email Sent column** / **Email Error column** | Only available when **Store results in spreadsheet** is on. **-- New Column --** (default) adds a new column. Or pick one of your existing columns to write the result there instead (rows already marked sent by the Conditional Column are left alone; blank-email rows get FALSE / "No email address"). Pick two different columns, and not the email column. |
 | **Start from Row** | Starts at this person (`1` = first person, row 2). Blank = from the top. |
 | **Limit Emails** | Stops after this many tries. Blank = no limit. |
 | **Stop After Errors** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
