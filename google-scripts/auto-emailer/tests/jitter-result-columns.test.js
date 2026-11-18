@@ -132,6 +132,21 @@ test('picked headers resolve by display value (date header)', () => {
   assert.deepStrictEqual([info.sentColIndex, info.errorColIndex], [3, 4]);
 });
 
+test('Conditional Column resolves by display value (date / boolean headers)', () => {
+  for (const [hdr, shown] of [[new Date('2026-01-01'), '2026-01-01'], [true, 'TRUE']]) {
+    const sheet = makeSheet('S', [['Email', 'Name', hdr, 'Done'], ['a@x.org', 'Ann', '', '']]);
+    const h = loadCodeGs({ spreadsheets: { S1: makeSpreadsheet([sheet]) }, drafts: [makeDraft('Hello', '<p>Hi {{Name}}</p>')], props: { usage_org: 'Test Org' } });
+    const info = h.ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, false, shown, 'S');
+    assert.strictEqual(info.conditionalColIndex, 3, shown);
+  }
+});
+
+test('Email Error == Conditional Column rejected when header is a date', () => {
+  const sheet = makeSheet('S', [['Email', 'Name', new Date('2026-01-01'), 'Done'], ['a@x.org', 'Ann', '', '']]);
+  const h = loadCodeGs({ spreadsheets: { S1: makeSpreadsheet([sheet]) }, drafts: [makeDraft('Hello', '<p>Hi {{Name}}</p>')], props: { usage_org: 'Test Org' } });
+  assert.throws(() => h.ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, '2026-01-01', 'S', null, '', '2026-01-01'), /Conditional Column/);
+});
+
 test('jitter: failed (non-quota) send also pauses once', () => {
   const { ctx, sleeps } = fixture();
   ctx.GmailApp.sendEmail = () => { throw new Error('boom'); };

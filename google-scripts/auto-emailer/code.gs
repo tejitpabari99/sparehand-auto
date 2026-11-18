@@ -1061,11 +1061,13 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
     let errorColSelected = false;
     let conditionalColIndex = null;
 
+    // Display values: match what the column dropdowns show (dates, numbers, booleans)
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+
     // Get conditional column index if specified
     if (conditionalColumn && conditionalColumn.trim() !== '') {
       console.log("Code.gs: Getting conditional column index");
       try {
-        const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
         conditionalColIndex = findColumnIndex(headers, conditionalColumn);
         console.log(`Code.gs: Conditional column index: ${conditionalColIndex}`);
       } catch (condError) {
@@ -1077,8 +1079,6 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
     // Create (or pick existing) result columns only if storeResults is true
     if (storeResults) {
       // Validate selections first: bad input must fail the batch, not be swallowed below
-      // Display values: match what the column dropdown shows (dates, numbers, booleans)
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
       const selSent = resolveResultColumn_(headers, sentColumn, 'Email Sent');
       const selError = resolveResultColumn_(headers, errorColumn, 'Email Error');
       if (selSent && selError && selSent === selError) {
