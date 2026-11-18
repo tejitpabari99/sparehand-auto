@@ -150,7 +150,7 @@
                      title="When checked, writes which emails were sent and any errors into the spreadsheet (new columns by default, or columns you pick below). Uncheck to send emails without updating the spreadsheet."></i>
                 </label>
               </div>
-              <small class="text-muted d-block">Tracks progress with timestamps in 'Email Sent' and 'Email Error' columns</small>
+              <small class="text-muted d-block">Adds 'Email Sent' and 'Email Error' columns with timestamps to track progress</small>
             </div>
 
             <!-- Conditional Column -->
@@ -783,6 +783,11 @@
         return;
       }
 
+      if (errorColumn && conditionalColumn && errorColumn === conditionalColumn) {
+        alert('Email Error cannot be the same column as the Conditional Column.');
+        return;
+      }
+
       // Confirm before sending
       const confirmMessage = limitEmails
         ? `Ready to send up to ${limitEmails} emails starting from row ${startRow}. Continue?`
@@ -971,7 +976,8 @@
             setTimeout(sendNext, 100);
           })
           .sendSingleEmail(sheetId, draftSubject, emailColumn, currentRow,
-                          batchInfo.sentColIndex, batchInfo.errorColIndex, storeResults, batchInfo.conditionalColIndex, sheetName, jitterRaised);
+                          batchInfo.sentColIndex, batchInfo.errorColIndex, storeResults, batchInfo.conditionalColIndex, sheetName, jitterRaised,
+                          batchInfo.sentColSelected === true, batchInfo.errorColSelected === true);
       }
 
       // Start sending

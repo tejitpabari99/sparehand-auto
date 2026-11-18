@@ -90,6 +90,89 @@ test('other send errors are normal row errors (no quotaStop, no retry)', () => {
   assert.strictEqual(n, 1);
 });
 
+// ---------- review round 1 ----------
+const singleP = (ctx, row, sentPicked, errPicked) =>
+  ctx.sendSingleEmail('S1', 'Hello', 'Email', row, 4, 3, true, null, 'S', false, sentPicked, errPicked);
+
+test('blank email: picked existing columns are left untouched', () => {
+  const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
+  const r = singleP(ctx, 1, true, true);
+  assert.strictEqual(r.noEmail, true);
+  assert.strictEqual(sheet.writes.length, 0);
+  assert.deepStrictEqual([sheet.cells[1][2], sheet.cells[1][3]], ['keep', 'keep']);
+});
+
+test('blank email: new (not picked) columns still get "No email address"', () => {
+  const { ctx, sheet } = fixture([['', 'Ann', '', '']]);
+  singleP(ctx, 1, false, false);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
+});
+
+test('blank email: mixed picked/new writes only the new column', () => {
+  const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
+  singleP(ctx, 1, true, false);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[3, 'No email address']]);
+});
+
+test('batchInfo reports which result columns were picked', () => {
+  let { ctx } = fixture();
+  let info = batch(ctx, 'Done', '');
+  assert.strictEqual(info.sentColSelected, true);
+  assert.strictEqual(info.errorColSelected, false);
+  ({ ctx } = fixture());
+  info = batch(ctx, '', '');
+  assert.strictEqual(info.sentColSelected, false);
+  assert.strictEqual(info.errorColSelected, false);
+});
+
+test('picked headers resolve by display value (date header)', () => {
+  const sheet = makeSheet('S', [['Email', 'Name', new Date('2024-01-05'), 'Done'], ['a@x.org', 'Ann', '', '']]);
+  const h = loadCodeGs({ spreadsheets: { S1: makeSpreadsheet([sheet]) }, drafts: [makeDraft('Hello', '<p>Hi {{Name}}</p>')], props: { usage_org: 'Test Org' } });
+  const info = batch(h.ctx, '2024-01-05', 'Done');
+  assert.deepStrictEqual([info.sentColIndex, info.errorColIndex], [3, 4]);
+});
+
+test('jitter: failed (non-quota) send also pauses once', () => {
+  const { ctx, sleeps } = fixture();
+  ctx.GmailApp.sendEmail = () => { throw new Error('boom'); };
+  setRandom(ctx, 0);
+  const r = single(ctx, 1);
+  assert.strictEqual(r.success, false);
+  assert.deepStrictEqual(sleeps, [500]);
+});
+
+test('jitter: no pause for rows that never attempted a send (invalid / blank)', () => {
+  const { ctx, sleeps } = fixture([['', 'A', '', ''], ['nope', 'B', '', '']]);
+  single(ctx, 1); single(ctx, 2);
+  assert.deepStrictEqual(sleeps, []);
+});
+
+test('jitter: quotaStop does not pause', () => {
+  const { ctx, sleeps } = fixture();
+  ctx.GmailApp.sendEmail = () => { throw new Error(QUOTA); };
+  single(ctx, 1, true);
+  assert.deepStrictEqual(sleeps, []);
+});
+
+test('Email Error column equal to Conditional Column is rejected', () => {
+  const { ctx, sheet } = fixture();
+  assert.throws(() => ctx.sendEmailBatch('S1', 'Hello', 'Email', 1, null, true, 'Done', 'S', null, '', 'Done'), /Conditional Column/);
+  assert.strictEqual(sheet.writes.length, 0);
+});
+
+test('UI: picked flags from batchInfo are passed back to sendSingleEmail', () => {
+  const h = loadIndexScript({ values: BASE });
+  h.ctx.startSending();
+  h.run.state.ok({ org: 'Acme' });
+  h.run.state.ok({ totalRows: 1, eligibleRowIndices: [1], sentColIndex: 4, errorColIndex: 5, conditionalColIndex: null, sentColSelected: true, errorColSelected: false });
+  const a = h.run.state.calls.filter(c => c.name === 'sendSingleEmail')[0].args;
+  assert.deepStrictEqual([a[10], a[11]], [true, false]);
+});
+
+test('UI: store-results helper text is the original wording', () => {
+  assert.ok(html.includes("<small class=\"text-muted d-block\">Adds 'Email Sent' and 'Email Error' columns with timestamps to track progress</small>"));
+});
+
 // ---------- UI quota handling ----------
 const BASE = { sheetSelect: 'S1', draftSelect: 'D', emailColumn: 'Email', tabSelect: 'Vols', orgName: 'Acme' };
 function startUi(extra) {

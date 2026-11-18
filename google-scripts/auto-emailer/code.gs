@@ -1057,6 +1057,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
 
     let sentColIndex = null;
     let errorColIndex = null;
+    let sentColSelected = false;   // true = user-picked existing column
+    let errorColSelected = false;
     let conditionalColIndex = null;
 
     // Get conditional column index if specified
@@ -1075,11 +1077,15 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
     // Create (or pick existing) result columns only if storeResults is true
     if (storeResults) {
       // Validate selections first: bad input must fail the batch, not be swallowed below
-      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      // Display values: match what the column dropdown shows (dates, numbers, booleans)
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
       const selSent = resolveResultColumn_(headers, sentColumn, 'Email Sent');
       const selError = resolveResultColumn_(headers, errorColumn, 'Email Error');
       if (selSent && selError && selSent === selError) {
         throw new Error('Email Sent and Email Error must be different columns. Pick two different columns or leave one as "-- New Column --".');
+      }
+      if (selError && conditionalColIndex && selError === conditionalColIndex) {
+        throw new Error('Email Error column cannot be the Conditional Column (its values must stay TRUE/FALSE). Pick a different column.');
       }
       if ((selSent && selSent === emailContext.emailColIndex) || (selError && selError === emailContext.emailColIndex)) {
         throw new Error('A result column cannot be the email column (it would overwrite your email addresses).');
@@ -1095,6 +1101,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
 
         sentColIndex = selSent;
         errorColIndex = selError;
+        sentColSelected = !!selSent;
+        errorColSelected = !!selError;
         // Same-timestamp columns from an earlier call are reused (both unselected only)
         if (!selSent && !selError) {
           sentColIndex = headers.indexOf(sentColumnName) + 1 || null;
@@ -1123,6 +1131,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
         console.warn("Code.gs: Continuing without result tracking columns");
         sentColIndex = null;
         errorColIndex = null;
+        sentColSelected = false;
+        errorColSelected = false;
       }
     } else {
       console.log("Code.gs: storeResults is false, skipping column creation");
@@ -1185,6 +1195,8 @@ function sendEmailBatch(sheetId, draftSubject, emailColumn, startRow = 1, limitE
       totalRows: totalToProcess,
       sentColIndex: sentColIndex,
       errorColIndex: errorColIndex,
+      sentColSelected: sentColSelected,
+      errorColSelected: errorColSelected,
       conditionalColIndex: conditionalColIndex,
       startRow: eligibleRowIndices[0] || startRow, // First eligible row
       eligibleRowIndices: eligibleRowIndices, // Array of all eligible row indices
@@ -1219,8 +1231,9 @@ function reportBatch(ok, fail, stopped, runId) {
 /**
  * Send a single email for the specified row
  */
-function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIndex, errorColIndex, storeResults = true, conditionalColIndex = null, sheetName, jitterRaised = false) {
+function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIndex, errorColIndex, storeResults = true, conditionalColIndex = null, sheetName, jitterRaised = false, sentColSelected = false, errorColSelected = false) {
   let raised = jitterRaised === true;
+  let attempted = false; // true once a send was tried: pause before the next request
   console.log(`Code.gs: Sending single email for row ${rowIndex}`);
 
   try {
@@ -1271,8 +1284,9 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
       console.warn(`Code.gs: No email address found in row ${rowIndex}`);
       if (storeResults && sentColIndex && errorColIndex) {
         try {
-          sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
-          sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
+          // Skipped rows leave user-picked existing columns untouched
+          if (sentColSelected !== true) sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
+          if (errorColSelected !== true) sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
           SpreadsheetApp.flush();
         } catch (sheetError) {
           console.error(`Code.gs: Error updating sheet for row ${rowIndex} - ${sheetError.message}`);
@@ -1319,6 +1333,7 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
       return { success: false, quotaStop: true, error: QUOTA_STOP_MESSAGE_, jitterRaised: true };
     };
 
+    attempted = true;
     try {
       try {
         doSend();
@@ -1381,6 +1396,9 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
         console.error(`Code.gs: Error updating error status in sheet for row ${rowIndex} - ${sheetError.message}`);
       }
     }
+
+    // Failed send: still pause randomly before the next request (quota stop returns earlier, no pause)
+    if (attempted) jitterSleep_(raised);
 
     return { success: false, error: error.message };
   }
