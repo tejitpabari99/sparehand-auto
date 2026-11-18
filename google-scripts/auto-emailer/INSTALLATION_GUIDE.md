@@ -106,7 +106,7 @@ Click **Advanced (Optional)** on the dashboard. Everything in it is optional.
 | **Email Sent column** / **Email Error column** | Only available when **Store results in spreadsheet** is on. **-- New Column --** (default) adds a new column. Or pick one of your existing columns to write the result there instead (only rows that were sent or failed are changed; skipped rows are left alone). Pick two different columns, and not the email column. |
 | **Start from Row** | Starts at this person (`1` = first person, row 2). Blank = from the top. |
 | **Limit Emails** | Stops after this many tries. Blank = no limit. |
-| **Stop After Errors (Optional)** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
+| **Stop After Errors** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
 
 The tool pauses a random 0.5 to 1 second between emails. If Google says you hit the daily limit, it slows to 1 to 2 seconds and retries that person once. If the limit is hit again, it stops and shows "Too many emails sent in a day via automation. Try again in 24 hours".
 
