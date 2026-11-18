@@ -137,3 +137,53 @@ test('stop: consecutive-error stop and init failure restore btn-primary', () => 
   assert.match(g.el('sendBtn').className || 'btn-primary', /btn-primary/);
   assert.strictEqual(g.el('sendBtn').disabled, false);
 });
+
+// ---------- test button blocked during a bulk send ----------
+const callsOf = (h, n) => h.run.state.calls.filter(c => c.name === n).length;
+
+test('test-btn: disabled from Initializing through the whole run; sendTest() is a no-op mid-run', () => {
+  const h = loadIndexScript({ values: BASE });
+  h.ctx.onSendBtnClick();
+  h.run.state.ok({ org: 'Acme' });
+  assert.strictEqual(h.el('testBtn').disabled, true, 'disabled while initializing');
+  h.run.state.ok({ totalRows: 4, eligibleRowIndices: [2, 3, 5, 6], sentColIndex: 4, errorColIndex: 5, conditionalColIndex: null });
+  assert.strictEqual(h.el('testBtn').disabled, true, 'disabled while sending');
+  const saves = callsOf(h, 'saveOrganization');
+  const statusBefore = h.el('status').innerHTML;
+  h.ctx.sendTest();
+  assert.strictEqual(callsOf(h, 'saveOrganization'), saves);
+  assert.strictEqual(callsOf(h, 'sendTestEmail'), 0);
+  assert.strictEqual(h.el('status').innerHTML, statusBefore);
+  assert.match(btn(h).className, /btn-danger/);
+});
+
+test('test-btn: sendTest() is blocked by isSending even if testBtn were enabled', () => {
+  const h = startUi();
+  h.el('testBtn').disabled = false;
+  const saves = callsOf(h, 'saveOrganization');
+  h.ctx.sendTest();
+  assert.strictEqual(callsOf(h, 'saveOrganization'), saves);
+  assert.strictEqual(callsOf(h, 'sendTestEmail'), 0);
+});
+
+test('test-btn: re-enabled after completion and after user stop', () => {
+  const h = startUi();
+  for (let i = 0; i < 4; i++) h.run.state.ok({ success: true });
+  assert.ok(h.el('status').innerHTML.includes('Complete!'));
+  assert.strictEqual(h.el('testBtn').disabled, false);
+
+  const g = startUi();
+  g.ctx.confirm = () => true;
+  g.ctx.onSendBtnClick();
+  g.run.state.ok({ success: true });
+  assert.ok(g.el('status').innerHTML.includes('Stopped'));
+  assert.strictEqual(g.el('testBtn').disabled, false);
+});
+
+test('test-btn: re-enabled after init failure', () => {
+  const g = loadIndexScript({ values: BASE });
+  g.ctx.onSendBtnClick();
+  g.run.state.ok({ org: 'Acme' });
+  g.run.state.fail({ message: 'bad' });
+  assert.strictEqual(g.el('testBtn').disabled, false);
+});
