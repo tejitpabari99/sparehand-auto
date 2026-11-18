@@ -16,6 +16,16 @@ function makeSheet(name, data) {
     getLastColumn: () => cells.reduce((m, r) => Math.max(m, r.length), 0),
     getDataRange: () => ({ getDisplayValues: () => cells.map(r => r.map(String)) }),
     getRange: (row, col, nRows = 1, nCols = 1) => ({
+      getDisplayValues: () => {
+        const disp = (v) => (Object.prototype.toString.call(v) === '[object Date]' ? v.toISOString().slice(0, 10) : String(v ?? ''));
+        const out = [];
+        for (let r = 0; r < nRows; r++) {
+          const line = [];
+          for (let c = 0; c < nCols; c++) line.push(disp((cells[row - 1 + r] || [])[col - 1 + c]));
+          out.push(line);
+        }
+        return out;
+      },
       getValues: () => {
         const out = [];
         for (let r = 0; r < nRows; r++) {

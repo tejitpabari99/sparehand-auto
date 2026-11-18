@@ -18,7 +18,7 @@ function begin(h, rows = 10) {
 const singles = (h) => h.run.state.calls.filter(c => c.name === 'sendSingleEmail');
 
 // ---------- structure ----------
-test('Advanced section: maxConsecutiveErrors input sits beside Conditional Column, min 1 step 1', () => {
+test('Advanced section: maxConsecutiveErrors input sits in the row with Start from Row and Limit Emails, min 1 step 1', () => {
   const { html } = loadIndexScript();
   const input = html.match(/<input[^>]*id="maxConsecutiveErrors"[^>]*>/);
   assert.ok(input, 'input exists');
@@ -27,12 +27,11 @@ test('Advanced section: maxConsecutiveErrors input sits beside Conditional Colum
   assert.match(input[0], /step="1"/);
   assert.match(input[0], /placeholder="Default: 5"/);
   assert.match(html, /Stop After Errors \(Optional\)/);
-  const i = html.indexOf('id="conditionalColumn"');
+  const i = html.indexOf('id="startRow"');
   const j = html.indexOf('id="maxConsecutiveErrors"');
   const rowStart = html.lastIndexOf('<div class="row mb-3">', i);
-  const nextBlock = html.indexOf('<!-- Store Results -->');
-  assert.ok(rowStart > html.indexOf('id="limitEmails"'), 'own row after the limit row');
-  assert.ok(j > rowStart && j < nextBlock, 'in the same row as conditional column');
+  assert.ok(html.indexOf('id="limitEmails"') > i && html.indexOf('id="limitEmails"') < j);
+  assert.strictEqual(html.slice(rowStart, j).split('<div class="row mb-3">').length - 1, 1, 'same row');
 });
 
 test('startRow and limitEmails inputs have min=1 step=1', () => {
