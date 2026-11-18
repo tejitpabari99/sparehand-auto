@@ -95,17 +95,20 @@ With **Store results in spreadsheet** on (default), your tab gets new **Email Se
 <img src="docs/images/sheet-result-columns.png" alt="The sheet with the new Email Sent and Email Error columns" width="560">
 
 ## Advanced options
-Click **Advanced** on the dashboard. All optional.
+Click **Advanced (Optional)** on the dashboard. Everything in it is optional.
 
 <img src="docs/images/advanced-features.png" alt="Advanced options" width="560">
 
 | Option | What it does |
 |---|---|
+| **Store results in spreadsheet** | Writes **Email Sent** and **Email Error** results into your tab (new columns with date and time by default). Turn off to send without touching the sheet. |
+| **Conditional Column** | A column saying who already got the email. **TRUE** = skip. FALSE or empty = send. Other values stop the run. |
+| **Email Sent column** / **Email Error column** | Only available when **Store results in spreadsheet** is on. **-- New Column --** (default) adds a new column. Or pick one of your existing columns to write the result there instead (only rows that were sent or failed are changed; skipped rows are left alone). Pick two different columns, and not the email column. |
 | **Start from Row** | Starts at this person (`1` = first person, row 2). Blank = from the top. |
 | **Limit Emails** | Stops after this many tries. Blank = no limit. |
-| **Conditional Column** | A column saying who already got the email. **TRUE** = skip. FALSE or empty = send. Other values stop the run. |
-| **Stop After Errors** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
-| **Store results in spreadsheet** | Adds **Email Sent** and **Email Error** columns (with date and time) each run. |
+| **Stop After Errors (Optional)** | Stops after this many failed rows in a row. Blank = 5. Whole numbers from 1. |
+
+The tool pauses a random 0.5 to 1 second between emails. If Google says you hit the daily limit, it slows to 1 to 2 seconds and retries that person once. If the limit is hit again, it stops and shows "Too many emails sent in a day via automation. Try again in 24 hours".
 
 If 5 emails in a row fail (or the number you set in **Stop After Errors**), the tool stops. Rows with a blank email cell are skipped: they are not counted as sent or failed, and do not affect this count. To continue after stopping:
 
@@ -121,7 +124,7 @@ Do **not** use the newest **Email Sent** column alone as the Conditional Column.
 | Sheet not in the list | Only 50 sheets are shown. Copy it (**File → Make a copy**) or remove old sheets, then refresh. Make sure it is not `.xlsx`. |
 | "Draft … not found" | Check it is still in Gmail **Drafts** and no other draft shares its subject. Refresh. |
 | `{{...}}` came out blank | Name does not match row 1 (check spelling, no inner spaces), the cell is empty, or it is only in the subject. |
-| Quota or limit error | Daily Google limit reached. Wait 24 hours, then continue. |
+| "Too many emails sent in a day via automation" | Daily Google limit reached. Wait 24 hours, then continue (set **Start from Row** to where it stopped). |
 | "Authorization required" | Open the tool link and repeat Step 3. Tick **Select all**. |
 | Stopped after 5 errors | Read the last error and the **Email Error** column, fix it, then continue. |
 

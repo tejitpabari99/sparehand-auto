@@ -77,5 +77,5 @@ test('startSending validates tab and passes it to sendEmailBatch and sendSingleE
   h.run.state.ok({ totalRows: 1, eligibleRowIndices: [1], sentColIndex: 4, errorColIndex: 5, conditionalColIndex: 3 });
   const single = h.run.state.calls.pop();
   assert.strictEqual(single.name, 'sendSingleEmail');
-  assert.deepStrictEqual(single.args, ['S1', 'D', 'Email', 1, 4, 5, true, 3, 'Vols']);
+  assert.deepStrictEqual(single.args, ['S1', 'D', 'Email', 1, 4, 5, true, 3, 'Vols', false]);
 });

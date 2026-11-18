@@ -131,45 +131,32 @@
       <div class="ai-section">
         <div class="ai-header" onclick="toggleAdvance()">
           <h5 class="mb-0">
-            <i class="bi bi-gear"></i> Advanced
+            <i class="bi bi-gear"></i> Advanced (Optional)
           </h5>
           <i class="bi bi-chevron-down toggle-icon" id="toggleAdvanceIcon"></i>
         </div>
 
         <div class="ai-content" id="advanceContent">
-          <!-- Start from Row and Limit Emails - Side by Side -->
+          <!-- Store Results and Conditional Column - Side by Side -->
           <div class="row mb-3">
-            <!-- Start from Row -->
+            <!-- Store Results -->
             <div class="col-md-6">
-              <label class="form-label d-flex align-items-center">
-                Start from Row (Optional)
-                <i class="bi bi-question-circle-fill help-icon"
-                   data-bs-toggle="tooltip"
-                   title="Enter a row number to start sending from (1 = first data row). Leave blank to start from the beginning."></i>
-              </label>
-              <input type="number" id="startRow" class="form-control" min="1" step="1" placeholder="Leave blank to start from row 1">
-              <small class="text-muted mt-1 d-block">Start from a specific row (e.g., 5)</small>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="storeResults" checked onchange="updateResultColumnState()">
+                <label class="form-check-label d-flex align-items-center" for="storeResults">
+                  Store results in spreadsheet
+                  <i class="bi bi-question-circle-fill help-icon"
+                     data-bs-toggle="tooltip"
+                     title="When checked, writes which emails were sent and any errors into the spreadsheet (new columns by default, or columns you pick below). Uncheck to send emails without updating the spreadsheet."></i>
+                </label>
+              </div>
+              <small class="text-muted d-block">Tracks progress with timestamps in 'Email Sent' and 'Email Error' columns</small>
             </div>
 
-            <!-- Limit Emails -->
-            <div class="col-md-6">
-              <label class="form-label d-flex align-items-center">
-                Limit Emails (Optional)
-                <i class="bi bi-question-circle-fill help-icon"
-                   data-bs-toggle="tooltip"
-                   title="Limit the number of emails to send. Leave blank to send all remaining emails. Only counts unsent emails (where conditional column is false or not set)."></i>
-              </label>
-              <input type="number" id="limitEmails" class="form-control" min="1" step="1" placeholder="Leave blank for no limit">
-              <small class="text-muted mt-1 d-block">Max emails to send (e.g., 10) - only counts unsent emails</small>
-            </div>
-          </div>
-
-          <!-- Conditional Column and Stop After Errors - Side by Side -->
-          <div class="row mb-3">
             <!-- Conditional Column -->
             <div class="col-md-6">
               <label class="form-label d-flex align-items-center">
-                Conditional Column (Optional)
+                Conditional Column
                 <i class="bi bi-question-circle-fill help-icon"
                    data-bs-toggle="tooltip"
                    title="Select a column containing TRUE/FALSE values. TRUE = email already sent (skip), FALSE = email not sent (send). Case insensitive. If not selected, all rows will be processed."></i>
@@ -179,9 +166,62 @@
               </select>
               <small class="text-muted mt-1 d-block">Column with TRUE (skip) or FALSE (send) values to control email sending</small>
             </div>
+          </div>
+
+          <!-- Result columns - Side by Side -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label d-flex align-items-center" for="sentColumn">
+                Email Sent column
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Where to write TRUE/FALSE for each row that was sent or failed. '-- New Column --' adds a new column. Skipped rows are left untouched. Needs 'Store results in spreadsheet'."></i>
+              </label>
+              <select id="sentColumn" class="form-select" disabled>
+                <option value="">-- New Column --</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label d-flex align-items-center" for="errorColumn">
+                Email Error column
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Where to write the error text for each row that was sent or failed. '-- New Column --' adds a new column. Must differ from the Email Sent column. Needs 'Store results in spreadsheet'."></i>
+              </label>
+              <select id="errorColumn" class="form-select" disabled>
+                <option value="">-- New Column --</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Start from Row, Limit Emails, Stop After Errors - Side by Side -->
+          <div class="row mb-3">
+            <!-- Start from Row -->
+            <div class="col-md-4">
+              <label class="form-label d-flex align-items-center">
+                Start from Row
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Enter a row number to start sending from (1 = first data row). Leave blank to start from the beginning."></i>
+              </label>
+              <input type="number" id="startRow" class="form-control" min="1" step="1" placeholder="Leave blank to start from row 1">
+              <small class="text-muted mt-1 d-block">Start from a specific row (e.g., 5)</small>
+            </div>
+
+            <!-- Limit Emails -->
+            <div class="col-md-4">
+              <label class="form-label d-flex align-items-center">
+                Limit Emails
+                <i class="bi bi-question-circle-fill help-icon"
+                   data-bs-toggle="tooltip"
+                   title="Limit the number of emails to send. Leave blank to send all remaining emails. Only counts unsent emails (where conditional column is false or not set)."></i>
+              </label>
+              <input type="number" id="limitEmails" class="form-control" min="1" step="1" placeholder="Leave blank for no limit">
+              <small class="text-muted mt-1 d-block">Max emails to send (e.g., 10) - only counts unsent emails</small>
+            </div>
 
             <!-- Stop After Errors -->
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label d-flex align-items-center">
                 Stop After Errors (Optional)
                 <i class="bi bi-question-circle-fill help-icon"
@@ -191,20 +231,6 @@
               <input type="number" id="maxConsecutiveErrors" class="form-control" min="1" step="1" placeholder="Default: 5">
               <small class="text-muted mt-1 d-block">Stop after this many errors in a row (e.g., 3)</small>
             </div>
-          </div>
-
-          <!-- Store Results -->
-          <div class="mb-3">
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" id="storeResults" checked>
-              <label class="form-check-label d-flex align-items-center" for="storeResults">
-                Store results in spreadsheet
-                <i class="bi bi-question-circle-fill help-icon"
-                   data-bs-toggle="tooltip"
-                   title="When checked, adds columns to track which emails were sent and any errors. Uncheck to send emails without updating the spreadsheet."></i>
-              </label>
-            </div>
-            <small class="text-muted d-block">Adds 'Email Sent' and 'Email Error' columns with timestamps to track progress</small>
           </div>
         </div>
       </div>
@@ -576,6 +602,8 @@
     function populateColumnDropdowns(headers) {
       const emailSelect = document.getElementById('emailColumn');
       const conditionalSelect = document.getElementById('conditionalColumn');
+      const sentSelect = document.getElementById('sentColumn');
+      const errorSelect = document.getElementById('errorColumn');
 
       // Clear existing options except the first placeholder
       emailSelect.innerHTML = '<option value="">-- Select a column --</option>';
@@ -585,6 +613,17 @@
       const optionsHtml = buildColumnOptionsHtml(headers);
       emailSelect.innerHTML += optionsHtml;
       conditionalSelect.innerHTML += optionsHtml;
+      sentSelect.innerHTML = NEW_COLUMN_OPTION + optionsHtml;
+      errorSelect.innerHTML = NEW_COLUMN_OPTION + optionsHtml;
+      updateResultColumnState();
+    }
+
+    // Result-column dropdowns only apply when "Store results in spreadsheet" is on
+    const NEW_COLUMN_OPTION = '<option value="">-- New Column --</option>';
+    function updateResultColumnState() {
+      const on = !!document.getElementById('storeResults').checked;
+      document.getElementById('sentColumn').disabled = !on;
+      document.getElementById('errorColumn').disabled = !on;
     }
 
     // Clear preview data
@@ -595,6 +634,8 @@
       // Clear column dropdowns
       document.getElementById('emailColumn').innerHTML = '<option value="">-- Select a column --</option>';
       document.getElementById('conditionalColumn').innerHTML = '<option value="">-- No conditional column --</option>';
+      document.getElementById('sentColumn').innerHTML = NEW_COLUMN_OPTION;
+      document.getElementById('errorColumn').innerHTML = NEW_COLUMN_OPTION;
     }
 
     // Send test email
@@ -688,6 +729,8 @@
       const maxConsecutiveErrors = maxErrorsParsed === null ? 5 : maxErrorsParsed;
       const storeResults = document.getElementById('storeResults').checked;
       const conditionalColumn = document.getElementById('conditionalColumn').value;
+      const sentColumn = storeResults ? document.getElementById('sentColumn').value : '';
+      const errorColumn = storeResults ? document.getElementById('errorColumn').value : '';
 
       // <input type=number> reports junk like "abc" as value "" - catch it explicitly
       const isBad = (id) => { const e = document.getElementById(id); return !!(e && e.validity && e.validity.badInput); };
@@ -735,6 +778,11 @@
         return;
       }
 
+      if (sentColumn && sentColumn === errorColumn) {
+        alert('Email Sent and Email Error must be different columns.');
+        return;
+      }
+
       // Confirm before sending
       const confirmMessage = limitEmails
         ? `Ready to send up to ${limitEmails} emails starting from row ${startRow}. Continue?`
@@ -772,7 +820,7 @@
 
           console.log("Frontend: ========== BATCH INITIALIZATION FAILED ==========");
         })
-        .sendEmailBatch(sheetId, draftSubject, emailColumn, startRow, limitEmails, storeResults, conditionalColumn, sheetName, maxConsecutiveErrors);
+        .sendEmailBatch(sheetId, draftSubject, emailColumn, startRow, limitEmails, storeResults, conditionalColumn, sheetName, maxConsecutiveErrors, sentColumn, errorColumn);
     }
 
     // Send emails one by one with progress updates
@@ -793,6 +841,7 @@
         try { google.script.run.reportBatch(reportOk, emailsFailed, stopped, runId); } catch (e) {}
       }
       let consecutiveErrors = 0;
+      let jitterRaised = false; // set once the server reports the daily-quota slowdown
       const MAX_CONSECUTIVE_ERRORS = batchInfo.maxConsecutiveErrors || maxConsecutiveErrors || 5;
       let emailsSkippedNoEmail = 0; // blank-email rows: neither sent nor failed
       const totalRows = batchInfo.totalRows;
@@ -841,6 +890,21 @@
         // Send single email
         google.script.run
           .withSuccessHandler(function(result) {
+            if (result.jitterRaised) jitterRaised = true;
+            if (result.quotaStop) {
+              // Daily Gmail quota hit twice: end the run; not a normal row error
+              console.error("Frontend: Stopped - daily email quota reached");
+              console.log("Frontend: ========== EMAIL BATCH STOPPED ==========");
+              document.getElementById('status').innerHTML =
+                `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> <strong>Stopped</strong></span>
+                 <p class="mt-2">${escapeHtml(result.error)}</p>
+                 <p>Sent: ${emailsSent}/${totalRows} emails</p>
+                 <p class="text-info small mt-2">Try again in 24 hours, starting from row ${currentRow}.</p>`;
+              btn.disabled = false;
+              btn.innerHTML = '<i class="bi bi-send-fill"></i> Send Emails';
+              reportOnce(true);
+              return;
+            }
             if (result.noEmail) {
               // Blank email cell: skipped, not a failure; consecutive counter untouched
               emailsSkippedNoEmail++;
@@ -907,7 +971,7 @@
             setTimeout(sendNext, 100);
           })
           .sendSingleEmail(sheetId, draftSubject, emailColumn, currentRow,
-                          batchInfo.sentColIndex, batchInfo.errorColIndex, storeResults, batchInfo.conditionalColIndex, sheetName);
+                          batchInfo.sentColIndex, batchInfo.errorColIndex, storeResults, batchInfo.conditionalColIndex, sheetName, jitterRaised);
       }
 
       // Start sending
