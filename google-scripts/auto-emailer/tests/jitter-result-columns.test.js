@@ -94,12 +94,11 @@ test('other send errors are normal row errors (no quotaStop, no retry)', () => {
 const singleP = (ctx, row, sentPicked, errPicked) =>
   ctx.sendSingleEmail('S1', 'Hello', 'Email', row, 4, 3, true, null, 'S', false, sentPicked, errPicked);
 
-test('blank email: picked existing columns are left untouched', () => {
+test('blank email: picked existing columns still get false + "No email address"', () => {
   const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
   const r = singleP(ctx, 1, true, true);
   assert.strictEqual(r.noEmail, true);
-  assert.strictEqual(sheet.writes.length, 0);
-  assert.deepStrictEqual([sheet.cells[1][2], sheet.cells[1][3]], ['keep', 'keep']);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
 test('blank email: new (not picked) columns still get "No email address"', () => {
@@ -108,10 +107,10 @@ test('blank email: new (not picked) columns still get "No email address"', () =>
   assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
-test('blank email: mixed picked/new writes only the new column', () => {
+test('blank email: mixed picked/new writes both columns', () => {
   const { ctx, sheet } = fixture([['', 'Ann', 'keep', 'keep']]);
   singleP(ctx, 1, true, false);
-  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[3, 'No email address']]);
+  assert.deepStrictEqual(sheet.writes.map(w => [w.col, w.value]), [[4, false], [3, 'No email address']]);
 });
 
 test('batchInfo reports which result columns were picked', () => {
@@ -295,11 +294,11 @@ const pos = (s) => { const i = html.indexOf(s); assert.ok(i >= 0, s); return i; 
 
 test('layout: Stop After Errors shares the row with Start from Row and Limit Emails', () => {
   const a = pos('id="startRow"'), b = pos('id="limitEmails"'), c = pos('id="maxConsecutiveErrors"');
-  const rowStart = html.lastIndexOf('<div class="row mb-3">', a);
+  const rowStart = html.lastIndexOf('<div class="row mb-3', a);
   const between = html.slice(rowStart, c);
-  assert.strictEqual((between.match(/<div class="row mb-3">/g) || []).length, 1, 'single row');
+  assert.strictEqual((between.match(/<div class="row mb-3/g) || []).length, 1, 'single row');
   assert.ok(a < b && b < c);
-  assert.match(html, /Stop After Errors \(Optional\)/);
+  assert.match(html, /Stop After Errors(?! \(Optional\))/);
   assert.match(html, /col-md-4/);
 });
 
@@ -310,14 +309,13 @@ test('Advanced title is "Advanced (Optional)"; individual advanced labels lose "
   assert.ok(!/Conditional Column \(Optional\)/.test(html));
 });
 
-test('Store results is first in Advanced with Conditional Column beside it; result dropdowns follow', () => {
+test('Store results + result dropdowns follow the start/limit row; Conditional Column beside them', () => {
   const store = pos('id="storeResults"'), cond = pos('id="conditionalColumn"');
   const sentSel = pos('id="sentColumn"'), errSel = pos('id="errorColumn"');
   const start = pos('id="startRow"');
-  assert.ok(store < cond && cond < sentSel && sentSel < errSel && errSel < start);
+  assert.ok(start < store && store < sentSel && sentSel < errSel && errSel < cond);
   const rowStart = html.lastIndexOf('<div class="row', store);
   assert.ok(rowStart > pos('id="advanceContent"') && rowStart < store);
-  assert.ok(cond > store && html.slice(store, cond).indexOf('<div class="row') === -1, 'same row');
   assert.match(html, /Email Sent column/);
   assert.match(html, /Email Error column/);
   assert.match(html, /<option value="">-- New Column --<\/option>/);

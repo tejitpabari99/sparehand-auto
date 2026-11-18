@@ -26,12 +26,12 @@ test('Advanced section: maxConsecutiveErrors input sits in the row with Start fr
   assert.match(input[0], /min="1"/);
   assert.match(input[0], /step="1"/);
   assert.match(input[0], /placeholder="Default: 5"/);
-  assert.match(html, /Stop After Errors \(Optional\)/);
+  assert.match(html, /Stop After Errors(?! \(Optional\))/);
   const i = html.indexOf('id="startRow"');
   const j = html.indexOf('id="maxConsecutiveErrors"');
-  const rowStart = html.lastIndexOf('<div class="row mb-3">', i);
+  const rowStart = html.lastIndexOf('<div class="row mb-3', i);
   assert.ok(html.indexOf('id="limitEmails"') > i && html.indexOf('id="limitEmails"') < j);
-  assert.strictEqual(html.slice(rowStart, j).split('<div class="row mb-3">').length - 1, 1, 'same row');
+  assert.strictEqual(html.slice(rowStart, j).split('<div class="row mb-3').length - 1, 1, 'same row');
 });
 
 test('startRow and limitEmails inputs have min=1 step=1', () => {

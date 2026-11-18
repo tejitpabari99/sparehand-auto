@@ -1284,9 +1284,8 @@ function sendSingleEmail(sheetId, draftSubject, emailColumn, rowIndex, sentColIn
       console.warn(`Code.gs: No email address found in row ${rowIndex}`);
       if (storeResults && sentColIndex && errorColIndex) {
         try {
-          // Skipped rows leave user-picked existing columns untouched
-          if (sentColSelected !== true) sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
-          if (errorColSelected !== true) sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
+          sheet.getRange(sheetRowNumber, sentColIndex).setValue(false);
+          sheet.getRange(sheetRowNumber, errorColIndex).setValue("No email address");
           SpreadsheetApp.flush();
         } catch (sheetError) {
           console.error(`Code.gs: Error updating sheet for row ${rowIndex} - ${sheetError.message}`);
